@@ -41,7 +41,7 @@
 #ifndef Expat_INCLUDED
 #define Expat_INCLUDED 1
 
-#idndef XML_STATIC
+#ifndef XML_STATIC
 #define XML_STATIC
 #endif
 
