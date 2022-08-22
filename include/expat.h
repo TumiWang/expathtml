@@ -41,6 +41,10 @@
 #ifndef Expat_INCLUDED
 #define Expat_INCLUDED 1
 
+#idndef XML_STATIC
+#define XML_STATIC
+#endif
+
 #include <stdlib.h>
 #include "expat_external.h"
 
