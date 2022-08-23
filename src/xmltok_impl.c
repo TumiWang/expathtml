@@ -608,6 +608,22 @@ PREFIX(scanAtts)(const ENCODING *enc, const char *ptr, const char *end,
         if (t == BT_EQUALS)
           break;
         switch (t) {
+        case BT_LEAD2:
+          ptr += 1;
+          break;
+        case BT_LEAD3:
+          ptr += 2;
+          break;
+        case BT_LEAD4:
+          ptr += 3;
+          break;
+        case BT_NONASCII:
+        case BT_NMSTRT:
+        case BT_HEX:
+        case BT_DIGIT:
+          break;
+        case BT_GT:
+          goto gt;
         case BT_S:
         case BT_LF:
         case BT_CR:
@@ -1624,10 +1640,12 @@ PREFIX(getHtmlAtts)(const ENCODING *enc, const char *ptr, int attsMax,
       if (state == inKey || state == afterKey || state == beforeValue) {       \
         atts[nAtts].valuePtr = ptr;                                            \
         atts[nAtts].valueEnd = ptr;                                            \
-        nAtts++;                                                                \
+        nAtts++;                                                               \
+        state = beforeKey;                                                     \
       } else if (state == inValue) {                                           \
         atts[nAtts].valueEnd = ptr;                                            \
-        nAtts++;                                                                \
+        nAtts++;                                                               \
+        state = beforeKey;                                                     \
       }                                                                        \
     }
 #  define START_NAME                                                           \
@@ -1644,6 +1662,11 @@ PREFIX(getHtmlAtts)(const ENCODING *enc, const char *ptr, int attsMax,
       state = inValue;                                                         \
     } else if (state == afterKey) {                                            \
       FINISH_ATT                                                               \
+      if (nAtts < attsMax) {                                                   \
+        atts[nAtts].name = ptr;                                                \
+        atts[nAtts].normalized = 1;                                            \
+      }                                                                        \
+      state = afterKey;                                                        \
     }
 #  define LEAD_CASE(n)                                                         \
   case BT_LEAD##n: /* NOTE: The encoding has already been validated. */        \
@@ -1656,6 +1679,7 @@ PREFIX(getHtmlAtts)(const ENCODING *enc, const char *ptr, int attsMax,
     case BT_NONASCII:
     case BT_NMSTRT:
     case BT_HEX:
+    case BT_DIGIT:
       START_NAME
       break;
     case BT_APOS:

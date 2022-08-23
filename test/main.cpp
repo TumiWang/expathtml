@@ -42,7 +42,7 @@ int main()
     // const char* text = "<doc a=fd><tt b=123>hello</tt></doc>";
     // const char* text = "<doc a=f测试d/>";
     // const char* text = "<doc a=fd> <doc1 h=ww/><tt b=123>hello</tt></doc>";
-    const char* text = "<doc a>text</doc>";
+    const char* text = "<doc a b=22>text</doc>";
     XML_Parser parser = XML_ParserCreate(NULL);
     XML_SetUserData(parser, parser);
     XML_SetElementHandler(parser, startElement, endElement);
