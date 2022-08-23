@@ -618,6 +618,7 @@ PREFIX(scanAtts)(const ENCODING *enc, const char *ptr, const char *end,
       /* fall through */
     case BT_EQUALS: {
       int open;
+      int isHtml = 0;
 #  ifdef XML_NS
       hadColon = 0;
 #  endif
@@ -633,16 +634,23 @@ PREFIX(scanAtts)(const ENCODING *enc, const char *ptr, const char *end,
         case BT_CR:
           break;
         default:
-          *nextTokPtr = ptr;
-          return XML_TOK_INVALID;
+          isHtml = 1;
+          open = BT_QUOT;
+          break;
+          // *nextTokPtr = ptr;
+          // return XML_TOK_INVALID;
         }
+        if (isHtml) break;
       }
-      ptr += MINBPC(enc);
+      if (!isHtml) ptr += MINBPC(enc);
       /* in attribute value */
       for (;;) {
         int t;
         REQUIRE_CHAR(enc, ptr, end);
         t = BYTE_TYPE(enc, ptr);
+        if (isHtml) {
+          if (t == BT_S || t == BT_GT || t == BT_CR) break;
+        }
         if (t == open)
           break;
         switch (t) {
@@ -664,7 +672,7 @@ PREFIX(scanAtts)(const ENCODING *enc, const char *ptr, const char *end,
           break;
         }
       }
-      ptr += MINBPC(enc);
+      if (!isHtml) ptr += MINBPC(enc);
       REQUIRE_CHAR(enc, ptr, end);
       switch (BYTE_TYPE(enc, ptr)) {
       case BT_S:
@@ -1591,6 +1599,138 @@ PREFIX(getAtts)(const ENCODING *enc, const char *ptr, int attsMax,
       if (state != inValue)
         return nAtts;
       break;
+    default:
+      break;
+    }
+  }
+  /* not reached */
+}
+
+static int PTRCALL
+PREFIX(getHtmlAtts)(const ENCODING *enc, const char *ptr, int attsMax,
+                ATTRIBUTE *atts) {
+  enum { inName, beforeKey, inKey, afterKey, beforeValue, inValue } state = inName;
+  int nAtts = 0;
+  int open = 0; /* defined when state == inValue;
+                   initialization just to shut up compilers */
+  int bt = 0;
+  for (ptr += MINBPC(enc);; ptr += MINBPC(enc)) {
+    bt = BYTE_TYPE(enc, ptr);
+    switch (bt) {
+#  define FINISH_ATT                                                           \
+    if (nAtts < attsMax) {                                                     \
+      if (state == inKey || state == afterKey || state == beforeValue) {       \
+        atts[nAtts].valuePtr = ptr;                                            \
+        atts[nAtts].valueEnd = ptr;                                            \
+        nAtts++;                                                                \
+      } else if (state == inValue) {                                           \
+        atts[nAtts].valueEnd = ptr;                                            \
+        nAtts++;                                                                \
+      }                                                                        \
+    }
+#  define START_NAME                                                           \
+    if (state == beforeKey) {                                                  \
+      if (nAtts < attsMax) {                                                   \
+        atts[nAtts].name = ptr;                                                \
+        atts[nAtts].normalized = 1;                                            \
+      }                                                                        \
+      state = inKey;                                                           \
+    } else if (state == beforeValue) {                                         \
+      if (nAtts < attsMax) {                                                   \
+        atts[nAtts].valuePtr = ptr;                                            \
+      }                                                                        \
+      state = inValue;                                                         \
+    } else if (state == afterKey) {                                            \
+      FINISH_ATT                                                               \
+    }
+#  define LEAD_CASE(n)                                                         \
+  case BT_LEAD##n: /* NOTE: The encoding has already been validated. */        \
+    START_NAME ptr += (n - MINBPC(enc));                                       \
+    break;
+      LEAD_CASE(2)
+      LEAD_CASE(3)
+      LEAD_CASE(4)
+#  undef LEAD_CASE
+    case BT_NONASCII:
+    case BT_NMSTRT:
+    case BT_HEX:
+      START_NAME
+      break;
+    case BT_APOS:
+    case BT_QUOT:
+      if (state == beforeKey || state == beforeValue) {
+        open = bt;
+        ptr += MINBPC(enc);
+        START_NAME
+      } else if (state == inKey) {
+        if (open == bt) {
+          state = beforeValue;
+          open = 0;
+        }
+      } else if (state == inValue) {
+        if (open == bt) {
+          if (nAtts < attsMax) {
+            atts[nAtts].valueEnd = ptr;
+          }
+          nAtts++;
+          state = beforeKey;
+          open = 0;
+        }
+      }
+      break;
+#  undef START_NAME
+    case BT_AMP:
+      if (nAtts < attsMax)
+        atts[nAtts].normalized = 0;
+      break;
+    case BT_S:
+      if (state == inName) {
+        state = beforeKey;
+      } else if (state == inKey) {
+        if (open != BT_APOS && open != BT_QUOT) {
+          state = afterKey;
+        }
+      } else if (state == inValue) {
+        if (open != BT_APOS && open != BT_QUOT) {
+          if (nAtts < attsMax) {
+            atts[nAtts].valueEnd = ptr;
+          }
+          nAtts++;
+          state = beforeKey;
+        } else {
+          if (nAtts < attsMax && atts[nAtts].normalized
+               && (ptr == atts[nAtts].valuePtr
+                   || BYTE_TO_ASCII(enc, ptr) != ASCII_SPACE
+                   || BYTE_TO_ASCII(enc, ptr + MINBPC(enc)) == ASCII_SPACE
+                   || BYTE_TYPE(enc, ptr + MINBPC(enc)) == open)) {
+            atts[nAtts].normalized = 0;
+          }
+        }
+      }
+      break;
+    case BT_CR:
+    case BT_LF:
+      /* This case ensures that the first attribute name is counted
+         Apart from that we could just change state on the quote. */
+      if (state == inName)
+        state = beforeKey;
+      else if (state == inValue && nAtts < attsMax)
+        atts[nAtts].normalized = 0;
+      break;
+    case BT_GT:
+    case BT_SOL:
+      FINISH_ATT
+      return nAtts;
+      break;
+    case BT_EQUALS:
+      if (open != BT_APOS && open != BT_QUOT)
+      {
+        if (state == inKey || state == afterKey) {
+          state = beforeValue;
+        }
+      }
+      break;
+#  undef FINISH_ATT
     default:
       break;
     }

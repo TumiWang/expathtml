@@ -70,7 +70,7 @@
    PREFIX(cdataSectionTok) IGNORE_SECTION_TOK_VTABLE},                         \
       {PREFIX(attributeValueTok), PREFIX(entityValueTok)},                     \
       PREFIX(nameMatchesAscii), PREFIX(nameLength), PREFIX(skipS),             \
-      PREFIX(getAtts), PREFIX(charRefNumber), PREFIX(predefinedEntityName),    \
+      PREFIX(getHtmlAtts), PREFIX(charRefNumber), PREFIX(predefinedEntityName),    \
       PREFIX(updatePosition), PREFIX(isPublicId)
 
 #define VTABLE VTABLE1, PREFIX(toUtf8), PREFIX(toUtf16)
