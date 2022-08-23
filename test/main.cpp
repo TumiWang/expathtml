@@ -7,7 +7,11 @@
 static void XMLCALL
 startElement(void *userData, const XML_Char * name, const XML_Char ** atts)
 {
-    printf("element start tag: %s\n", name);
+    XML_Parser parser = (XML_Parser)userData;
+    int index = XML_GetCurrentByteIndex(parser);
+    int bIsSingle = XML_CurrentNodeIsSigle(parser);
+    int count = XML_CurrentNodeCount(parser);
+    printf("element start tag: %s index:%d\n", name, index);
     int i;
     for (i = 0; atts[i]; ++i)
     {
@@ -18,6 +22,8 @@ startElement(void *userData, const XML_Char * name, const XML_Char ** atts)
 static void XMLCALL
 endElement(void *userData, const XML_Char * name)
 {
+    XML_Parser parser = (XML_Parser)userData;
+    int count = XML_CurrentNodeCount(parser);
     printf("element end tag: %s\n", name);
 }
 
@@ -32,9 +38,12 @@ int main()
 {
     // const char* text = "<doc>text</doc>";
     // const char* text = "<doc a = \"fd\" b = \"123\">text</doc>";
-    const char* text = "<doc a=fd>text</doc>";
-    // const char* text = "<doc a=fd/>";
+    // const char* text = "<doc a=fd>text</doc>";
+    // const char* text = "<doc a=fd><tt b=123>hello</tt></doc>";
+    // const char* text = "<doc a=f测试d/>";
+    const char* text = "<doc a=fd> <doc1 h=ww/><tt b=123>hello</tt></doc>";
     XML_Parser parser = XML_ParserCreate(NULL);
+    XML_SetUserData(parser, parser);
     XML_SetElementHandler(parser, startElement, endElement);
     XML_SetCharacterDataHandler(parser, textElement);
     XML_Parse(parser, text, strlen(text), 1);

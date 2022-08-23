@@ -949,6 +949,16 @@ XMLPARSEAPI(XML_Size) XML_GetCurrentLineNumber(XML_Parser parser);
 XMLPARSEAPI(XML_Size) XML_GetCurrentColumnNumber(XML_Parser parser);
 XMLPARSEAPI(XML_Index) XML_GetCurrentByteIndex(XML_Parser parser);
 
+/* 判断当前节点是否为<  />
+   在XML_StartElementHandler回调中调用
+*/
+XMLPARSEAPI(int) XML_CurrentNodeIsSigle(XML_Parser parser);
+
+/* 获取当前节点的长度
+   在XML_StartElementHandler和XML_EndElementHandler回调中调用
+*/
+XMLPARSEAPI(XML_Index) XML_CurrentNodeCount(XML_Parser parser);
+
 /* Return the number of bytes in the current event.
    Returns 0 if the event is in an internal entity.
 */

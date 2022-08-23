@@ -2253,6 +2253,32 @@ XML_GetCurrentByteIndex(XML_Parser parser) {
 }
 
 int XMLCALL
+XML_CurrentNodeIsSigle(XML_Parser parser) {
+  int r = 0;
+  do {
+    if (!parser) break;
+    if (!parser->m_eventEndPtr) break;
+    if (*(parser->m_eventEndPtr - 1) != '>') break;
+    if (*(parser->m_eventEndPtr - 2) != '/') break;
+    r = 1;
+  } while (0);
+  return r;
+}
+
+XML_Index XMLCALL
+XML_CurrentNodeCount(XML_Parser parser)
+{
+  XML_Index count = -1;
+  do {
+    if (!parser) break;
+    if (!parser->m_eventPtr) break;
+    if (!parser->m_eventEndPtr) break;
+    count = (XML_Index)(parser->m_eventEndPtr - parser->m_eventPtr);
+  } while (0);
+  return count;
+}
+
+int XMLCALL
 XML_GetCurrentByteCount(XML_Parser parser) {
   if (parser == NULL)
     return 0;
