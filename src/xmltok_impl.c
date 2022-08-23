@@ -594,6 +594,8 @@ PREFIX(scanAtts)(const ENCODING *enc, const char *ptr, const char *end,
       }
       break;
 #  endif
+    case BT_GT:
+      goto gt;
     case BT_S:
     case BT_CR:
     case BT_LF:
